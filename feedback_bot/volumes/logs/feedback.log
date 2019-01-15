@@ -1,0 +1,3 @@
+2019-01-10 09:18:53,071 [feedbackApp ] ERROR    {'service_id': None, 'session_id': None, 'status': 'RabbitMQ connection closed. Reason: (320, "CONNECTION_FORCED - broker forced connection closure with reason \'shutdown\'")'}
+2019-01-10 11:10:28,011 [feedbackApp ] ERROR    {'status': 'RabbitMQ connection closed. Reason: (320, "CONNECTION_FORCED - broker forced connection closure with reason \'shutdown\'")', 'service_id': None, 'session_id': None}
+2019-01-10 11:19:58,881 [feedbackApp ] ERROR    {'service_id': None, 'session_id': None, 'status': 'RabbitMQ connection closed. Reason: (320, "CONNECTION_FORCED - broker forced connection closure with reason \'shutdown\'")'}

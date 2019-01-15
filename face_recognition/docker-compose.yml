@@ -1,0 +1,61 @@
+services:
+  classifier_creator:
+    build:
+      context: ./classifier_creator
+    ports:
+    - 6010
+    restart: always
+    volumes:
+    - /home/user/teledomophone/face_recognition/classifier_creator:/app
+    - /home/user/teledomophone/face_recognition/volumes:/volumes
+    networks:
+    - default
+
+  classify:
+    build:
+      context: ./classify
+    ports:
+    - 6008
+    restart: always
+    volumes:
+    - /home/user/teledomophone/face_recognition/classify:/app
+    - /home/user/teledomophone/face_recognition/volumes:/volumes
+    networks:
+    - default
+
+  detector:
+    build:
+      context: ./detector
+    devices:
+    - /dev/nvidia0
+    - /dev/nvidiactl
+    - /dev/nvidia-uvm
+    ports:
+    - 6006
+    restart: always
+    volumes:
+    - /home/user/teledomophone/face_recognition/detector:/app
+    - /home/user/teledomophone/face_recognition/volumes:/volumes
+    runtime: nvidia
+    networks:
+    - default
+
+  photo_push:
+    build:
+      context: ./photo_push
+    ports:
+    - 6009
+    restart: always
+    volumes:
+    - /home/user/teledomophone/face_recognition/photo_push:/app
+    - /home/user/teledomophone/face_recognition/volumes:/volumes
+    networks:
+    - default
+
+version: '2.4'
+
+networks:
+  default:
+    external: true 
+    name: my_net
+

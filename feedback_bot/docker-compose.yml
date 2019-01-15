@@ -1,0 +1,19 @@
+services: 
+  feedback_bot:
+    build:
+      context: ./feedback_bot
+    ports:
+    - 6012
+    restart: always
+    volumes:
+    - /home/user/teledomophone/feedback_bot/feedback_bot:/app
+    - /home/user/teledomophone/feedback_bot/volumes:/volumes
+    networks:
+    - default
+
+version: '2.4'
+
+networks:
+  default:
+    name: my_net
+    external: true
