@@ -14,6 +14,7 @@ from rabbitmq import RabbitClass
 import logging
 import pika
 import redis
+import logstash
 
 
 def create_photo(ch, method, properties, body):
@@ -27,7 +28,13 @@ def create_photo(ch, method, properties, body):
     session_id = msg['session_id']
     service_id = msg['service_id']
     received_time = msg['time']
-    logger.debug("SERVICE_ID: {}   SESSION_ID: {}".format(service_id, session_id))
+
+    extra = {
+        'service_id': service_id,
+        'session_id': session_id,
+    }
+
+    logger.info('', extra=extra)
 
     if service_id not in ['etalon6', 'etalon7', 'etalon8']:
         return
@@ -79,7 +86,7 @@ if __name__ == "__main__":
     if not os.path.exists(args.config):
         sys.exit("No such file or directory: %s" % args.config)
 
-    r_cache = redis.StrictRedis(host='10.80.0.22', port=6379, db=0)
+    r_cache = redis.StrictRedis(host='redis', port=6379, db=0)
     config = ConfigObj(args.config)
 
     vs6 = VideoStream(src="rtsp://user:cVis_288@10.100.146.221/Streaming/Channels/1?tcp").start()
@@ -99,16 +106,16 @@ if __name__ == "__main__":
     logger.addHandler(fh)  # add handler to logger object
 
     queue_vad = RabbitQueue(args.config)
-    queue_handler = QueueHandler()
-    queue_handler.set_queue(queue_vad)
-    queue_handler.setLevel(logging.INFO)
-    queue_handler.setFormatter(formatter)
-    logger.addHandler(queue_handler)
+
+    host = '10.80.0.30'
+    lh = logstash.TCPLogstashHandler(host, 5000, version=1, tags=['photo_push'])
+    lh.setLevel(logging.INFO)
+    logger.addHandler(lh)
+
 
     if 'rabbitmq' not in config:
         sys.exit("Mandatory section missing: %s" % 'rabbitmq')
 
     queue = RabbitClass(args.config, logger)
     logger.debug("Start photo push")
-    # create_photo()
     queue_vad.read_queue_with_direct_exchange(create_photo, 'kicks', 'kick_face')

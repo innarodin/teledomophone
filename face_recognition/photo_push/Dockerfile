@@ -6,6 +6,9 @@ LABEL maintainer="rodinskayaia"
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
+        libsm6 \
+        libxrender1 \
+        libfontconfig1 \
         python3 \
         python3-dev \ 
         rsync \
@@ -31,7 +34,8 @@ RUN pip3 --no-cache-dir install \
 	configobj \
 	opencv-python \
 	opencv-contrib-python \
-	redis
+	redis \
+	python-logstash
 
 RUN apt-get update && apt-get install -y git
 

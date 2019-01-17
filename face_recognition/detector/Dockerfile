@@ -11,7 +11,8 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 
 RUN pip3 --no-cache-dir install \
 	pika \
-        redis
+	redis \
+	python-logstash
 
 RUN apt-get update && apt-get install -y git
 

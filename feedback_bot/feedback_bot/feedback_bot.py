@@ -12,16 +12,18 @@ from rabbitmq import RabbitClass
 from rabbit_queues import RabbitQueue, QueueHandler
 from configobj import ConfigObj
 
-
 _token = '738125364:AAFyEJm9A0noRUyaNVr58O-91cr0Fz-BG54'
 _timeout = 1
 _limit = 100
 
 bot = telebot.TeleBot(_token)
 
+
 def get_username(user_id):
     with postgresql.open('pq://postgres:postgres@db:5432/recognition') as db:
         result = db.query("SELECT username FROM username_id WHERE user_id={};".format(user_id))
+        if len(result) == 0:
+            return user_id
         return result[0][0]
 
 
@@ -33,8 +35,8 @@ def read_feedback(channel, method_frame, header_frame, body):
     conf = data['conf']
     time = data['time']
 
-    bot.send_message(face_pred, "{} FACE: {} VOICE: {} CONF: {} TIME: {}".format(reason, get_username(face_pred),\
-            get_username(voice_pred), conf, time))
+    bot.send_message(face_pred, "{} ЛИЦО: {} ГОЛОС: {} ВЕРОЯТНОСТЬ РАСПОЗНАВАНИЯ ГОЛОСА: {} ВРЕМЯ: {}".format(reason, get_username(face_pred),
+                                                                                 get_username(voice_pred), conf, time))
 
 
 if __name__ == '__main__':

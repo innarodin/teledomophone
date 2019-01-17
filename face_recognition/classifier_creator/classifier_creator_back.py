@@ -16,6 +16,7 @@ def get_embeddings():
     with postgresql.open('pq://postgres:postgres@db:5432/recognition') as db:
         result = db.query("SELECT name, embedding FROM embeddings;")
 
+
     embs = {}
     for row in result:
         emb_array = [[]]

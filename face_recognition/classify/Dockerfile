@@ -33,7 +33,8 @@ RUN pip3 --no-cache-dir install \
 	pika \
 	configobj \
 	py-postgresql \
-	redis 
+	redis \
+	python-logstash
 
 RUN apt-get update && apt-get install -y git
 

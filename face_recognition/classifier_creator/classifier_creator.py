@@ -10,6 +10,7 @@ import pickle
 import psycopg2.extensions
 import select
 import json
+from collections import defaultdict
 
 
 def get_embeddings():
@@ -41,7 +42,7 @@ def face_distance(face_encodings, face_to_compare):
 
 
 def write_centers_to_db(centers):
-    with postgresql.open('pq://postgres:postgres@10.80.0.22:5432/recognition') as db:
+    with postgresql.open('pq://postgres:postgres@db:5432/recognition') as db:
         upd = db.prepare("UPDATE centers SET embedding=$1, distance=$2 WHERE name=$3;")
         ins = db.prepare("INSERT INTO centers (name, embedding, distance) VALUES ($1, $2, $3);")
         result = db.query("SELECT name FROM centers;")
@@ -53,6 +54,16 @@ def write_centers_to_db(centers):
                 upd(emb[0], dist, name)
             else:
                 ins(name, emb[0], dist)
+
+
+def save_usernames_to_redis():
+    names = defaultdict(list)
+    with postgresql.open('pq://postgres:postgres@db:5432/recognition') as db:
+        result = db.query("SELECT user_id, username FROM username_id;")
+        for item in result:
+            names[item[0]] = item[1]
+
+    r.set('names', pickle.dumps(names))
 
 
 def create_classifier():
@@ -130,6 +141,7 @@ def create_classifier():
 
     write_centers_to_db(centers)
     r.set('centers', pickle.dumps(centers))
+    save_usernames_to_redis()
 
 
 if __name__ == '__main__':
@@ -141,8 +153,6 @@ if __name__ == '__main__':
     logger.addHandler(fh)  # add handler to logger object
 
     r = redis.StrictRedis(host='redis', port=6379, db=0)
-    # r.delete('centers')
-    # create_classifier()
 
     conn = psycopg2.connect(dbname='recognition', user='postgres', password='postgres', host='db')
     conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)

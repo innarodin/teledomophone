@@ -15,6 +15,7 @@ from rabbitmq import RabbitClass
 import json
 import decimal
 import logging
+import logstash
 
 
 def face_distance(face_encodings, face_to_compare):
@@ -42,6 +43,11 @@ def get_centers_from_db():
             centers[i[0]] = (emb_array, float(i[2]))
 
     return centers
+
+
+def get_username(user_id):
+    logger.debug("{}".format(pickle.loads(r.get('names'))[user_id]))
+    return pickle.loads(r.get('names'))[user_id]
 
 
 def classification(channel, method, props, body):
@@ -84,9 +90,9 @@ def classification(channel, method, props, body):
         found_cluster = min_dist_cluster
         dist = face_distances[found_cluster]
         save_emb_to_db(found_cluster, embedding)
-    elif (first_place[1] / second_place[1] >= 2 and 0.4 > first_place[1] > 0.3) or first_place[1] > 0.4:
+    elif (first_place[1] / second_place[1] >= 2 and 0.5 > first_place[1] > 0.4) or first_place[1] >= 0.5:
         found_cluster = first_place[0]
-        save_emb_to_db(found_cluster, embedding)
+        # save_emb_to_db(found_cluster, embedding)
         dist = "cosine_similarities: {}".format(first_place[1])
     else:
         found_cluster = "Unknown"
@@ -106,18 +112,16 @@ def classification(channel, method, props, body):
     queue.send_message(msg, 'voice_face')
     logger.debug("sent")
 
-    # if found_cluster != 'Unknown':
-    #     with postgresql.open('pq://postgres:postgres@db:5432/recognition') as db:
-    #         result = db.query("SELECT username FROM username_id WHERE user_id={};".format(found_cluster))
-    #         if result[0][0] is not None:
-    #             found_cluster = result[0][0]
+    if found_cluster != 'Unknown':
+        found_cluster = get_username(int(found_cluster))
 
     msg = {
-        "service_id": service_id,
-        "session_id": session_id,
-        "status": "NAME: {}, DIST: {}".format(found_cluster, dist)
+        'service_id': service_id,
+        'session_id': session_id,
+        'found_name': found_cluster,
+        'distance': dist
     }
-    logger.info(msg)
+    logger.info(' ', extra=msg)
 
     t7 = time.time()
 
@@ -157,12 +161,10 @@ if __name__ == '__main__':
     fh.setFormatter(formatter)
     logger.addHandler(fh)  # add handler to logger object
 
-    # queue = RabbitQueue(args.config)
-    # queue_handler = QueueHandler()
-    # queue_handler.set_queue(queue)
-    # queue_handler.setLevel(logging.INFO)
-    # queue_handler.setFormatter(formatter)
-    # logger.addHandler(queue_handler)
+    host = '10.80.0.30'
+    lh = logstash.TCPLogstashHandler(host, 5000, version=1, tags=['classify'])
+    lh.setLevel(logging.INFO)
+    logger.addHandler(lh)
 
     logger.debug("Start classify")
 

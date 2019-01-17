@@ -8,17 +8,14 @@ import numpy as np
 import pytz
 import datetime
 from configobj import ConfigObj
-#import mtcnn_detector
 from rabbitmq import RabbitClass
-import tensorflow as tf
-# from detect_face import detect_face, create_mtcnn
 import face_model
 import logging
 import redis
-from rabbit_queues import RabbitQueue, QueueHandler
+import logstash
 
 
-def make_photo(path, face, session_id):
+def make_photo(path, face, session_id, service_id):
     tz = pytz.timezone('Asia/Yekaterinburg')
     data = str(datetime.datetime.now(tz=tz).date())
     if not os.path.exists(path):
@@ -31,7 +28,12 @@ def make_photo(path, face, session_id):
     cur_time = str(datetime.datetime.now(tz=tz).time())
     img_name = cur_time + '.jpg'
     path_to_write = str(os.path.join(new_path, img_name))
-    logger.debug("{} {}".format(path_to_write, session_id))
+    msg = {
+        'photo_path': path_to_write,
+        'session_id': session_id,
+        'service_id': service_id
+    }
+    logger.info('Face!', extra=msg)
     face = np.swapaxes(face, 0, 2)
     face = np.swapaxes(face, 0, 1)
     cv2.imwrite(path_to_write, cv2.cvtColor(face, cv2.COLOR_BGR2RGB))
@@ -70,11 +72,10 @@ def detect(channel, method_frame, header_frame, body):
 
         if r.get("detect" + str(session_id)) == b'3':
             msg = {
-                "service_id": service_id,
-                "session_id": session_id,
-                "status": "No face"
+                'service_id': service_id,
+                'session_id': session_id,
             }
-            logger.info(msg)
+            logger.info('No face', extra=msg)
             r.delete("detect" + str(session_id))
         return
 
@@ -82,7 +83,7 @@ def detect(channel, method_frame, header_frame, body):
     if emb_array is None:
         return
 
-    path = make_photo(os.path.join(storage_path, service_id), face, session_id)
+    path = make_photo(os.path.join(storage_path, service_id), face, session_id, service_id)
 
     t3 = time.time()
     msg = {
@@ -139,12 +140,10 @@ if __name__ == "__main__":
     fh.setFormatter(formatter)
     logger.addHandler(fh)  # add handler to logger object
 
-    queue = RabbitQueue(args.config)
-    queue_handler = QueueHandler()
-    queue_handler.set_queue(queue)
-    queue_handler.setLevel(logging.INFO)
-    queue_handler.setFormatter(formatter)
-    logger.addHandler(queue_handler)
+    host = '10.80.0.30'
+    lh = logstash.TCPLogstashHandler(host, 5000, version=1, tags=['detector'])
+    lh.setLevel(logging.INFO)
+    logger.addHandler(lh)
 
     queue = RabbitClass(args.config, logger)
     queue.create_queue('detect')
