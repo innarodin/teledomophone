@@ -89,14 +89,17 @@ def classification(channel, method, props, body):
     if face_distances[min_dist_cluster] <= centers[min_dist_cluster][1]:
         found_cluster = min_dist_cluster
         dist = face_distances[found_cluster]
+        dist_type = "cluster"
         save_emb_to_db(found_cluster, embedding)
     elif (first_place[1] / second_place[1] >= 2 and 0.5 > first_place[1] > 0.4) or first_place[1] >= 0.5:
         found_cluster = first_place[0]
         # save_emb_to_db(found_cluster, embedding)
-        dist = "cosine_similarities: {}".format(first_place[1])
+        dist = first_place[1]
+        dist_type = "cosine similarities"
     else:
         found_cluster = "Unknown"
         dist = None
+        dist_type = None
 
     msg = {
         'predict': (found_cluster, dist),
@@ -115,13 +118,14 @@ def classification(channel, method, props, body):
     if found_cluster != 'Unknown':
         found_cluster = get_username(int(found_cluster))
 
-    msg = {
+    extra = {
         'service_id': service_id,
         'session_id': session_id,
         'found_name': found_cluster,
-        'distance': dist
+        'distance': dist,
+        'dist_type': dist_type
     }
-    logger.info(' ', extra=msg)
+    logger.info(extra, extra=extra)
 
     t7 = time.time()
 
