@@ -57,7 +57,7 @@ class FaceModel:
 
         self.det = det
         self.threshold = threshold
-        self.det_minsize = 50
+        self.det_minsize = 120
         self.det_threshold = [0.6, 0.7, 0.8]
         self.image_size = image_size
         mtcnn_path = os.path.join(os.path.dirname(__file__), 'mtcnn-model')
@@ -92,10 +92,10 @@ class FaceModel:
             return None
         points = points[box_id, :].reshape((2, 5)).T
 
-        fp1, fp2, fp3, fp4, fp5 = points[0], points[1], points[2], points[3], points[4]  # left eye, right eye, nose, left mouth, rigth mouth
-        if abs(distance.euclidean(fp1, fp3) - distance.euclidean(fp2, fp3)) > 10 or \
-                        abs(distance.euclidean(fp4, fp3) - distance.euclidean(fp5, fp3)) > 10:
-            return None
+        # fp1, fp2, fp3, fp4, fp5 = points[0], points[1], points[2], points[3], points[4]  # left eye, right eye, nose, left mouth, rigth mouth
+        # if abs(distance.euclidean(fp1, fp3) - distance.euclidean(fp2, fp3)) > 10 or \
+        #                 abs(distance.euclidean(fp4, fp3) - distance.euclidean(fp5, fp3)) > 10:
+        #     return None
 
         nimg = face_preprocess.preprocess(face_img, bbox, points, image_size='112, 112')
         nimg = cv.cvtColor(nimg, cv.COLOR_BGR2RGB)
