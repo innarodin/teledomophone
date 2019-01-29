@@ -11,7 +11,7 @@ import os
 import postgresql
 from configobj import ConfigObj
 import redis
-from rabbitmq import RabbitClass
+from rabbitmq import RabbitConnection
 import json
 import decimal
 import logging
@@ -174,7 +174,7 @@ if __name__ == '__main__':
 
     r = redis.StrictRedis(host='redis', port=6379, db=0)
 
-    queue = RabbitClass(args.config, logger)
+    queue = RabbitConnection(args.config, logger)
     # queue.create_exchange(config['rabbitmq']['exchange'])
     queue.create_queue('classify')
     queue.read_queue(classification)

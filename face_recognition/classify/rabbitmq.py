@@ -5,7 +5,7 @@ import sys
 import pickle
 
 
-class RabbitClass:
+class RabbitConnection:
     def __init__(self, path_config, logger):
         self.queue_name = None
         self.exchange = None
@@ -47,11 +47,6 @@ class RabbitClass:
         self.channel.queue_declare(queue=self.queue_name)
 
     def read_queue(self, callback):
-        result = self.channel.queue_declare(self.queue_name, durable=False)
-        self.channel.queue_bind(exchange=self.exchange,
-                                queue=self.queue_name,
-                                routing_key=self.queue_name)
-
         consumer_id = ''.join(['%02X' % random.getrandbits(8) for _ in range(8)])
 
         self.channel.basic_qos(prefetch_count=1)

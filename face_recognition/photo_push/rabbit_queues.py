@@ -7,17 +7,6 @@ import logging
 import ast
 
 
-class QueueHandler(logging.Handler):
-    def set_queue(self, rabbit_queue):
-        self._queue = rabbit_queue
-        self._queue.create_exchange_direct('logs')
-
-    def emit(self, record):
-        service_id = ast.literal_eval(record.message)['service_id']
-        log_entry = self.format(record)
-        self._queue.send_message(log_entry, service_id)
-
-
 class RabbitQueue():
     def __init__(self, path_config):
         self.name_queue = None

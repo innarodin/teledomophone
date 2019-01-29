@@ -8,7 +8,7 @@ import numpy as np
 import pytz
 import datetime
 from configobj import ConfigObj
-from rabbitmq import RabbitClass
+from rabbitmq import RabbitConnection
 import face_model
 import logging
 import redis
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     lh.setLevel(logging.INFO)
     logger.addHandler(lh)
 
-    queue = RabbitClass(args.config, logger)
+    queue = RabbitConnection(args.config, logger)
     queue.create_queue('detect')
     logger.debug("Start detector")
     queue.read_queue(detect)

@@ -9,8 +9,8 @@ import time
 import numpy as np
 from configobj import ConfigObj
 from imutils.video import VideoStream
-from rabbit_queues import RabbitQueue, QueueHandler
-from rabbitmq import RabbitClass
+from rabbit_queues import RabbitQueue
+from rabbitmq import RabbitConnection
 import logging
 import pika
 import redis
@@ -112,10 +112,10 @@ if __name__ == "__main__":
     lh.setLevel(logging.INFO)
     logger.addHandler(lh)
 
-
     if 'rabbitmq' not in config:
         sys.exit("Mandatory section missing: %s" % 'rabbitmq')
 
-    queue = RabbitClass(args.config, logger)
+    queue = RabbitConnection(args.config, logger)
     logger.debug("Start photo push")
+
     queue_vad.read_queue_with_direct_exchange(create_photo, 'kicks', 'kick_face')
