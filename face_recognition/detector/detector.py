@@ -15,89 +15,109 @@ import redis
 import logstash
 
 
-def make_photo(path, face, session_id, service_id):
-    tz = pytz.timezone('Asia/Yekaterinburg')
-    data = str(datetime.datetime.now(tz=tz).date())
-    if not os.path.exists(path):
-        os.mkdir(path)
+class Detector:
+    def __init__(self, gpu, img_size, model_path, threshold, det):
+        self.model = face_model.FaceModel(gpu, img_size, model_path, threshold, det)
+        self.logger = self.create_logger()
+        self.logger.debug("Start detector")
 
-    if data not in os.listdir(path):
-        os.mkdir(os.path.join(path, data))
+    @staticmethod
+    def create_logger():
+        logger = logging.getLogger("detectorApp")
+        logger.setLevel(logging.DEBUG)
+        fh = logging.FileHandler("/volumes/logs/detector.log")  # create the logging file handler
+        formatter = logging.Formatter('%(asctime)s [%(name)-12s] %(levelname)-8s %(message)s')
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)  # add handler to logger object
 
-    new_path = os.path.join(path, data)
-    cur_time = str(datetime.datetime.now(tz=tz).time())
-    img_name = cur_time + '.jpg'
-    path_to_write = str(os.path.join(new_path, img_name))
-    msg = {
-        'photo_path': path_to_write,
-        'session_id': session_id,
-        'service_id': service_id
-    }
-    logger.info('Face!', extra=msg)
-    face = np.swapaxes(face, 0, 2)
-    face = np.swapaxes(face, 0, 1)
-    cv2.imwrite(path_to_write, cv2.cvtColor(face, cv2.COLOR_BGR2RGB))
-    return path_to_write.split("photo/")[1]
+        host = '10.80.0.30'
+        lh = logstash.TCPLogstashHandler(host, 5000, version=1, tags=['detector'])
+        lh.setLevel(logging.INFO)
+        logger.addHandler(lh)
+        return logger
 
+    def make_photo(self, path, face, session_id, service_id):
+        tz = pytz.timezone('Asia/Yekaterinburg')
+        data = str(datetime.datetime.now(tz=tz).date())
+        if not os.path.exists(path):
+            os.mkdir(path)
 
-def detect(channel, method_frame, header_frame, body):
-    storage_path = None
-    t2 = time.time()
+        if data not in os.listdir(path):
+            os.mkdir(os.path.join(path, data))
 
-    if 'storage' in detector_config:
-        storage_path = detector_config['storage']
+        new_path = os.path.join(path, data)
+        cur_time = str(datetime.datetime.now(tz=tz).time())
+        img_name = cur_time + '.jpg'
+        path_to_write = str(os.path.join(new_path, img_name))
+        msg = {
+            'photo_path': path_to_write,
+            'session_id': session_id,
+            'service_id': service_id
+        }
+        self.logger.info('Face!', extra=msg)
+        face = np.swapaxes(face, 0, 2)
+        face = np.swapaxes(face, 0, 1)
+        cv2.imwrite(path_to_write, cv2.cvtColor(face, cv2.COLOR_BGR2RGB))
+        return path_to_write.split("photo/")[1]
 
-    data = pickle.loads(body)
-    face_string = data['face']
-    t0 = data['t0']
-    t1 = data['t1']
-    service_id = data['service_id']
-    session_id = data['session_id']
+    def detect(self, channel, method_frame, header_frame, body):
+        storage_path = None
+        t2 = time.time()
 
-    if r.get(str(session_id)) is not None:
-        return
+        if 'storage' in detector_config:
+            storage_path = detector_config['storage']
 
-    image = np.asarray(bytearray(face_string), dtype="uint8")
-    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+        data = pickle.loads(body)
+        face_string = data['face']
+        t0 = data['t0']
+        t1 = data['t1']
+        service_id = data['service_id']
+        session_id = data['session_id']
 
-    face = model.get_input(image)
+        if r.get(str(session_id)) is not None:
+            return
 
-    if face is None:
-        if r.get("detect" + str(session_id)) is None:
-            r.set("detect" + str(session_id), 1)
-            logger.debug("No face {}".format(session_id))
-        else:
-            r.incr("detect" + str(session_id))
-            logger.debug("No face {}".format(session_id))
+        image = np.asarray(bytearray(face_string), dtype="uint8")
+        image = cv2.imdecode(image, cv2.IMREAD_COLOR)
 
-        if r.get("detect" + str(session_id)) == b'3':
-            msg = {
-                'service_id': service_id,
-                'session_id': session_id,
-            }
-            logger.info('No face', extra=msg)
-            r.delete("detect" + str(session_id))
-        return
+        face = self.model.get_input(image)
 
-    emb_array = model.get_feature(face)
-    if emb_array is None:
-        return
+        if face is None:
+            if r.get("detect" + str(session_id)) is None:
+                r.set("detect" + str(session_id), 1)
+                self.logger.debug("No face {}".format(session_id))
+            else:
+                r.incr("detect" + str(session_id))
+                self.logger.debug("No face {}".format(session_id))
 
-    path = make_photo(os.path.join(storage_path, service_id), face, session_id, service_id)
+            if r.get("detect" + str(session_id)) == b'3':
+                msg = {
+                    'service_id': service_id,
+                    'session_id': session_id,
+                }
+                self.logger.info('No face', extra=msg)
+                r.delete("detect" + str(session_id))
+            return
 
-    t3 = time.time()
-    msg = {
-        'embeddings': emb_array,
-        'path': os.path.join(path),
-        't0': t0,
-        't1': t1,
-        't2': t2,
-        't3': t3,
-        'service_id': service_id,
-        "session_id": session_id
-    }
+        emb_array = self.model.get_feature(face)
+        if emb_array is None:
+            return
 
-    queue.send_message(msg, 'classify')
+        path = self.make_photo(os.path.join(storage_path, service_id), face, session_id, service_id)
+
+        t3 = time.time()
+        msg = {
+            'embeddings': emb_array,
+            'path': os.path.join(path),
+            't0': t0,
+            't1': t1,
+            't2': t2,
+            't3': t3,
+            'service_id': service_id,
+            "session_id": session_id
+        }
+
+        queue.send_message(msg, 'classify')
 
 
 if __name__ == "__main__":
@@ -128,24 +148,10 @@ if __name__ == "__main__":
 
     # get configuration parameters
     detector_config = config['detector']
-
-    model = face_model.FaceModel(args.gpu, args.img_size, args.model_path, args.threshold, args.det)
+    detector = Detector(args.gpu, args.img_size, args.model_path, args.threshold, args.det)
 
     r = redis.StrictRedis(host='redis', port=6379, db=0)
 
-    logger = logging.getLogger("detectorApp")
-    logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler("/volumes/logs/detector.log")  # create the logging file handler
-    formatter = logging.Formatter('%(asctime)s [%(name)-12s] %(levelname)-8s %(message)s')
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)  # add handler to logger object
-
-    host = '10.80.0.30'
-    lh = logstash.TCPLogstashHandler(host, 5000, version=1, tags=['detector'])
-    lh.setLevel(logging.INFO)
-    logger.addHandler(lh)
-
-    queue = RabbitConnection(args.config, logger)
+    queue = RabbitConnection(args.config, detector.logger)
     queue.create_queue('detect')
-    logger.debug("Start detector")
-    queue.read_queue(detect)
+    queue.read_queue(detector.detect)
