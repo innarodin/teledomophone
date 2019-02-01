@@ -5,6 +5,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
+    restart: always
     ports:
     - 5432:5432
     volumes:
@@ -16,6 +17,7 @@ services:
     image: redis
     ports:
     - "16379:6379" 
+    restart: always
     networks:
     - default
 
